@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>OTG Fitness</title>
+  <meta name="description" content="Gym companion. Effort over count. You against you.">
+  <meta name="theme-color" content="#0f0e0c">
+  <meta name="color-scheme" content="dark">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="OTG">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">OTG <span>FITNESS</span></div>
+      <div id="topbar-status" class="topbar-status"></div>
+    </header>
+
+    <main id="main">
+      <section id="tab-grind" class="tab" aria-label="Grind"></section>
+      <section id="tab-programs" class="tab" aria-label="Programs" hidden></section>
+      <section id="tab-recover" class="tab" aria-label="Recover" hidden></section>
+      <section id="tab-temple" class="tab" aria-label="Temple" hidden></section>
+    </main>
+
+    <nav class="tabbar" aria-label="Sections">
+      <button type="button" data-action="tab" data-tab="grind" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10h2v4H3zM19 10h2v4h-2zM6 7h2v10H6zM16 7h2v10h-2zM8 11h8v2H8z"/></svg>
+        <span>Grind</span>
+      </button>
+      <button type="button" data-action="tab" data-tab="programs">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v2H4zM4 11h16v2H4zM4 17h10v2H4z"/></svg>
+        <span>Programs</span>
+      </button>
+      <button type="button" data-action="tab" data-tab="recover">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c2 3 5 5.5 5 9.5a5 5 0 0 1-10 0C7 9.5 9 8 9.5 5.5 10.5 7 11 8 12 3z"/></svg>
+        <span>Recover</span>
+      </button>
+      <button type="button" data-action="tab" data-tab="temple">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 3 7v2h18V7zM5 10h2v8H5zM11 10h2v8h-2zM17 10h2v8h-2zM3 19h18v2H3z"/></svg>
+        <span>Temple</span>
+      </button>
+    </nav>
+  </div>
+
+  <div id="detail" class="sheet" hidden></div>
+  <div id="runner" class="runner" hidden></div>
+  <div id="rest" class="rest" hidden></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
