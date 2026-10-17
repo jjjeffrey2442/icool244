@@ -21,7 +21,20 @@
   @keyframes sway { 0%,100% { transform: rotate(-.8deg); } 50% { transform: rotate(.8deg); } }
   .pulse { animation: pulse 2.4s ease-in-out infinite; }
   @keyframes pulse { 0%,100% { opacity: var(--glow); } 50% { opacity: calc(var(--glow) * .55); } }
+  .breathe { transform-box: view-box; animation: breathe 4s ease-in-out infinite; }
+  @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(var(--amp)); } }
   .controls { display: grid; gap: 12px; margin-top: 16px; }
+  .logs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .logs button, .row button { padding: 12px 6px; border-radius: 12px; border: 2px solid var(--line); background: #232019; color: var(--text); font-weight: 800; font-size: 14px; cursor: pointer; }
+  .logs button:active { transform: translateY(1px); }
+  .row { display: flex; gap: 8px; }
+  .row button { flex: 1; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; background: transparent; }
+  .meters { display: grid; gap: 7px; margin-top: 4px; }
+  .meter { display: grid; grid-template-columns: 112px 1fr 38px; align-items: center; gap: 8px; font-size: 13px; }
+  .meter i { display: block; height: 8px; border-radius: 8px; background: #232019; overflow: hidden; }
+  .meter i b { display: block; height: 100%; background: var(--accent); border-radius: 8px; }
+  .meter span:last-child { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .last { min-height: 20px; color: var(--muted); font-size: 13px; }
   .ctl label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
   .ctl label b { color: var(--text); letter-spacing: 0; font-size: 14px; }
   input[type=range] { width: 100%; accent-color: var(--accent); }
@@ -38,19 +51,31 @@
   <div class="frame"><svg id="scene" viewBox="0 0 400 720" role="img" aria-label="A twin-trunked tree with roots as vast as its branches"></svg></div>
 
   <div class="controls">
-    <div class="ctl"><label for="legs">Legs · calves · feet <b id="legs-v"></b></label><input id="legs" type="range" min="0" max="60" value="30"></div>
-    <div class="ctl"><label for="core">Core <b id="core-v"></b></label><input id="core" type="range" min="0" max="60" value="36"></div>
-    <div class="ctl"><label for="arms">Arms <b id="arms-v"></b></label><input id="arms" type="range" min="0" max="60" value="30"></div>
-    <div class="ctl"><label for="vest">Vest weight <b id="vest-v"></b></label><input id="vest" type="range" min="0" max="200" step="5" value="75"></div>
+    <div class="ctl"><label for="vest">Vest on <b id="vest-v"></b></label><input id="vest" type="range" min="0" max="200" step="5" value="75"></div>
+    <div class="logs" role="group" aria-label="Log a workout">
+      <button type="button" data-log="legs">+ Legs</button>
+      <button type="button" data-log="cardio">+ Cardio</button>
+      <button type="button" data-log="arms">+ Arms</button>
+      <button type="button" data-log="chest">+ Chest</button>
+      <button type="button" data-log="abs">+ Abs</button>
+      <button type="button" data-log="recovery">+ Recovery</button>
+    </div>
+    <div class="last" id="last" aria-live="polite"></div>
+    <div class="meters" id="meters"></div>
+    <div class="row">
+      <button type="button" data-act="month">Simulate a month</button>
+      <button type="button" data-act="undo">Undo</button>
+      <button type="button" data-act="reset">Day one</button>
+    </div>
   </div>
 
   <ul class="key">
-    <li><span>Roots</span><span>Legs, calves, feet. They bear the weight when you're tired.</span></li>
-    <li><span>Twin trunk</span><span>Core. Two bases woven into one. The vest hardens it.</span></li>
+    <li><span>Roots</span><span>Legs, calves, feet. Every workout feeds them: they carry you through all of it.</span></li>
+    <li><span>Twin trunk</span><span>Core. Abs build it most. The vest hardens it on every session.</span></li>
     <li><span>Gold rings</span><span>Every 25 lb on the vest. 25, 50, 75: each one earned.</span></li>
-    <li><span>Heart</span><span>Glows brighter the more you show up.</span></li>
-    <li><span>Branches</span><span>Arms. They reach out and interweave.</span></li>
-    <li><span>Crown</span><span>Mind. Every session adds leaves.</span></li>
+    <li><span>Heart &amp; lungs</span><span>Cardio. The heart glows and grows, and the canopy breathes deeper.</span></li>
+    <li><span>Branches</span><span>Arms and chest. They reach out and interweave. Abs steady them a little.</span></li>
+    <li><span>Crown</span><span>Mind. Every session, recovery included, adds leaves.</span></li>
   </ul>
 </main>
 <script>
@@ -85,11 +110,38 @@
     return `<g fill="none" stroke-linecap="round" stroke-linejoin="round" ${extra || ''}>${o}${f}</g>`;
   }
 
+  // What each workout grows. Legs, calves and feet gain from everything: they carry you through all of it.
+  const GROWTH = {
+    legs:     { roots: 3, trunk: 1,   branches: 0,   heart: 0,   label: 'Legs' },
+    cardio:   { roots: 2, trunk: .5,  branches: 0,   heart: 3,   label: 'Cardio' },
+    arms:     { roots: 1, trunk: .5,  branches: 3,   heart: 0,   label: 'Arms' },
+    chest:    { roots: 1, trunk: .5,  branches: 3,   heart: 0,   label: 'Chest' },
+    abs:      { roots: 1, trunk: 3,   branches: .5,  heart: 0,   label: 'Abs' },
+    recovery: { roots: 0, trunk: 0,   branches: 0,   heart: .5,  label: 'Recovery' }
+  };
+  const VEST_BONUS = { roots: 1, trunk: 1 };       // any session done in the vest
+  const FULL = { roots: 150, trunk: 120, branches: 120, heart: 75, mind: 75 }; // points for full growth
+  let log = [];
+
+  function totals() {
+    const t = { roots: 0, trunk: 0, branches: 0, heart: 0, mind: log.length };
+    for (const e of log) {
+      const g = GROWTH[e.type];
+      t.roots += g.roots; t.trunk += g.trunk; t.branches += g.branches; t.heart += g.heart;
+      if (e.vest > 0 && e.type !== 'recovery') { t.roots += VEST_BONUS.roots; t.trunk += VEST_BONUS.trunk; }
+    }
+    return t;
+  }
+
   function render() {
-    const L = +$('legs').value, C = +$('core').value, A = +$('arms').value, V = +$('vest').value;
-    const M = L + C + A;
-    $('legs-v').textContent = `${L} sessions`; $('core-v').textContent = `${C} sessions`;
-    $('arms-v').textContent = `${A} sessions`; $('vest-v').textContent = `${V} lb`;
+    const V = +$('vest').value;
+    $('vest-v').textContent = V ? `${V} lb` : 'off';
+    const T = totals();
+    const lvl = (k) => Math.min(1, T[k] / FULL[k]);
+    const L = 60 * lvl('roots'), C = 60 * lvl('trunk'), A = 60 * lvl('branches');
+    const M = 180 * lvl('mind'), HEART = lvl('heart');
+    $('meters').innerHTML = [['Roots · legs', 'roots'], ['Trunk · core', 'trunk'], ['Branches · arms', 'branches'], ['Heart · lungs', 'heart'], ['Crown · mind', 'mind']]
+      .map(([n, k]) => `<div class="meter"><span>${n}</span><i><b style="width:${Math.round(lvl(k) * 100)}%"></b></i><span>${Math.round(lvl(k) * 100)}%</span></div>`).join('');
 
     // ---- core: two trunks braided together
     const H = 70 + 160 * (C / 60);
@@ -160,12 +212,13 @@
       cl.map(([x, y, r]) => `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(r)}" fill="${LEAF}"/>`).join('') +
       cl.map(([x, y, r]) => `<circle cx="${f1(x - r * .35)}" cy="${f1(y - r * .35)}" r="${f1(r * .32)}" fill="${LEAF2}" opacity=".8"/>`).join('');
 
-    const glow = Math.min(1, .25 + M / 120);
+    const glow = Math.min(1, .2 + HEART * .8);
     const hk = crossK.length ? crossK[crossK.length - 1] : Math.round(N * .6);
     const hy = trunkPts[0][hk][1];
-    const heart = `<g class="pulse" style="--glow:${glow.toFixed(2)}"><circle cx="200" cy="${f1(hy)}" r="26" fill="#ff6b7d" opacity=".55" filter="url(#blur)"/></g>
+    const hs = (1 + HEART * .8).toFixed(2);
+    const heart = `<g transform="translate(200 ${f1(hy)}) scale(${hs}) translate(-200 -${f1(hy)})"><g class="pulse" style="--glow:${glow.toFixed(2)}"><circle cx="200" cy="${f1(hy)}" r="26" fill="#ff6b7d" opacity=".55" filter="url(#blur)"/></g>
       <path d="M200 ${f1(hy + 9)} C 186 ${f1(hy)}, 186 ${f1(hy - 11)}, 194 ${f1(hy - 11)} C 198 ${f1(hy - 11)}, 200 ${f1(hy - 7)}, 200 ${f1(hy - 5)} C 200 ${f1(hy - 7)}, 202 ${f1(hy - 11)}, 206 ${f1(hy - 11)} C 214 ${f1(hy - 11)}, 214 ${f1(hy)}, 200 ${f1(hy + 9)} Z"
-        fill="#ff5a6e" stroke="${OUT}" stroke-width="3.5" stroke-linejoin="round" opacity="${(.5 + glow / 2).toFixed(2)}"/>`;
+        fill="#ff5a6e" stroke="${OUT}" stroke-width="3.5" stroke-linejoin="round" opacity="${(.5 + glow / 2).toFixed(2)}"/></g>`;
 
     // ---- vest: a gold ring for every 25 lb
     const rings = Math.floor(V / 25);
@@ -179,7 +232,7 @@
       const arc = `M${f1(198 - half)} ${f1(y)}A${f1(half + 2)} 6 0 0 0 ${f1(202 + half)} ${f1(y)}`;
       ringSvg += `<path d="${arc}" fill="none" stroke="${OUT}" stroke-width="10" stroke-linecap="round"/>
         <path d="${arc}" fill="none" stroke="#ffcf4d" stroke-width="5" stroke-linecap="round"/>
-        <text x="${f1(200 + half + 12)}" y="${f1(y + 4)}" font-size="11" font-weight="900" fill="${OUT}" font-family="system-ui,sans-serif">${(r + 1) * 25}</text>`;
+        ${(r === rings - 1 || (hk / N - .14) * H / rings > 16) ? `<text x="${f1(200 + half + 12)}" y="${f1(y + 4)}" font-size="11" font-weight="900" fill="${OUT}" font-family="system-ui,sans-serif">${(r + 1) * 25}</text>` : ''}`;
     }
 
     // ---- root tips: in tune with the earth
@@ -217,7 +270,7 @@
       ${stones}
       <g clip-path="url(#below)"><g id="below-g">${strokes(roots.segs, ROOT)}${rootGlow}</g></g>
       <path d="M-10 ${GROUND + 6} Q 100 ${GROUND - 10} 200 ${GROUND} T 410 ${GROUND - 2} L410 ${GROUND + 16} L-10 ${GROUND + 16} Z" fill="#6fc54c" stroke="${OUT}" stroke-width="5" stroke-linejoin="round"/>
-      <g id="above-g"><g class="sway">${strokes(branches.segs, WOOD)}${leaves}</g>
+      <g id="above-g"><g class="sway">${strokes(branches.segs, WOOD)}<g class="breathe" style="--amp:${(1 + .045 * HEART).toFixed(3)};transform-origin:200px ${f1(topY)}px">${leaves}</g></g>
       ${braid}
       ${ringSvg}
       ${heart}</g>
@@ -234,7 +287,25 @@
     if (k < 1) g.setAttribute('transform', `translate(200 ${GROUND}) scale(${k.toFixed(3)}) translate(-200 -${GROUND})`);
   }
 
-  ['legs', 'core', 'arms', 'vest'].forEach((id) => $(id).addEventListener('input', render));
+  $('vest').addEventListener('input', render);
+  document.querySelectorAll('[data-log]').forEach((b) => b.addEventListener('click', () => {
+    const e = { type: b.dataset.log, vest: +$('vest').value };
+    log.push(e);
+    const g = GROWTH[e.type];
+    const parts = [['roots', 'roots'], ['trunk', 'trunk'], ['branches', 'branches'], ['heart', 'heart']]
+      .map(([k, n]) => [n, g[k] + (e.vest && e.type !== 'recovery' && VEST_BONUS[k] ? VEST_BONUS[k] : 0)]).filter(([, v]) => v > 0);
+    $('last').textContent = `${g.label}${e.vest && e.type !== 'recovery' ? ` in the ${e.vest} lb vest` : ''}: ${parts.map(([n, v]) => `${n} +${v}`).join(', ')}, crown +1.`;
+    render();
+  }));
+  document.querySelector('[data-act="undo"]').addEventListener('click', () => { log.pop(); $('last').textContent = ''; render(); });
+  document.querySelector('[data-act="reset"]').addEventListener('click', () => { log = []; $('last').textContent = ''; render(); });
+  document.querySelector('[data-act="month"]').addEventListener('click', () => {
+    const v = +$('vest').value;
+    const week = ['legs', 'arms', 'cardio', 'abs', 'chest', 'cardio', 'recovery'];
+    for (let w = 0; w < 4; w++) week.forEach((type) => log.push({ type, vest: type === 'cardio' || type === 'recovery' ? 0 : v }));
+    $('last').textContent = 'A month: legs, arms, chest and abs in the vest, cardio twice a week, one recovery day.';
+    render();
+  });
   render();
 })();
 </script>
