@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OTG Growth Tree</title>
+<style>
+  :root { --out: #2b2238; --bg: #0f0e0c; --text: #f2ede4; --muted: #a69d8f; --accent: #e0a84a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.4 system-ui, -apple-system, sans-serif; }
+  main { max-width: 440px; margin: 0 auto; padding: 16px; }
+  .frame { border-radius: 28px; overflow: hidden; border: 4px solid var(--out); box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+  svg { display: block; width: 100%; height: auto; }
+  .sway { transform-box: fill-box; transform-origin: 50% 100%; animation: sway 4.5s ease-in-out infinite; }
+  @keyframes sway { 0%,100% { transform: rotate(-1.6deg); } 50% { transform: rotate(1.6deg); } }
+  .drop { animation: fall linear infinite; }
+  @keyframes fall { from { transform: translate(0, -90px); } to { transform: translate(-70px, 640px); } }
+  .splash { transform-box: fill-box; transform-origin: center; animation: splash 1s ease-out infinite; }
+  @keyframes splash { 0% { transform: scale(.2); opacity: .9; } 100% { transform: scale(1.4); opacity: 0; } }
+  .petal { animation: drift linear infinite; }
+  @keyframes drift { from { transform: translate(0, 0) rotate(0); } to { transform: translate(-60px, 260px) rotate(300deg); } }
+  .cloud { animation: float 18s ease-in-out infinite alternate; }
+  @keyframes float { from { transform: translateX(-12px); } to { transform: translateX(12px); } }
+  .picker { display: flex; gap: 8px; margin: 16px 0 12px; flex-wrap: wrap; }
+  .picker button { flex: 1; padding: 10px 12px; border-radius: 999px; border: 2px solid #342f27; background: #232019; color: var(--text); font-weight: 800; font-size: 14px; cursor: pointer; }
+  .picker button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #1a1206; }
+  label { display: block; font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .stage { margin-top: 10px; font-size: 20px; font-weight: 900; }
+  .next { color: var(--muted); font-size: 14px; }
+  @media (prefers-reduced-motion: reduce) { .sway, .drop, .splash, .petal, .cloud { animation: none; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="frame"><svg id="scene" viewBox="0 0 400 600" role="img" aria-label="Your tree growing in the rain"></svg></div>
+  <div class="picker" role="group" aria-label="Choose your tree">
+    <button type="button" data-tree="oak" aria-pressed="true">Oak</button>
+    <button type="button" data-tree="cherry" aria-pressed="false">Cherry blossom</button>
+    <button type="button" data-tree="pine" aria-pressed="false">Pine</button>
+  </div>
+  <label for="sessions">Sessions completed: <span id="count">12</span></label>
+  <input id="sessions" type="range" min="0" max="60" value="12">
+  <div class="stage" id="stage"></div>
+  <div class="next" id="next"></div>
+</main>
+<script>
+(() => {
+  const OUT = '#2b2238';
+  const STAGES = [
+    { at: 0, name: 'Sprout' }, { at: 3, name: 'Sapling' }, { at: 10, name: 'Young tree' },
+    { at: 25, name: 'Full tree' }, { at: 50, name: 'Grand tree' }
+  ];
+  const TREES = {
+    oak: { leaf: '#5cc94f', shade: '#3fa63c', trunk: '#a8673a' },
+    cherry: { leaf: '#ffb0cc', shade: '#f387ad', trunk: '#8f5537' },
+    pine: { leaf: '#2fae6a', shade: '#218a52', trunk: '#8a5232' }
+  };
+  let tree = 'oak';
+  const GROUND = 515;
+
+  // Seeded random so the rain does not jump between redraws
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+
+  const stageFor = (n) => STAGES.reduce((s, st, i) => (n >= st.at ? i : s), 0);
+
+  function sky() {
+    return `<defs>
+      <linearGradient id="sky" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0" stop-color="#cdeac0"/>
+        <stop offset=".35" stop-color="#9fe0c4"/>
+        <stop offset=".7" stop-color="#4fd0cf"/>
+        <stop offset="1" stop-color="#1fb3d1"/>
+      </linearGradient>
+    </defs>
+    <rect width="400" height="600" fill="url(#sky)"/>`;
+  }
+
+  function cloud(x, y, s) {
+    const c = [[0, 0, 26], [28, -10, 32], [60, 0, 24], [30, 10, 24]];
+    const outl = c.map(([cx, cy, r]) => `<circle cx="${x + cx * s}" cy="${y + cy * s}" r="${r * s}" fill="${OUT}" stroke="${OUT}" stroke-width="8"/>`).join('');
+    const fill = c.map(([cx, cy, r]) => `<circle cx="${x + cx * s}" cy="${y + cy * s}" r="${r * s}" fill="#ffffff"/>`).join('');
+    return `<g class="cloud" opacity=".95">${outl}${fill}</g>`;
+  }
+
+  function ground() {
+    return `<path d="M-10 ${GROUND + 8} Q 110 ${GROUND - 26} 200 ${GROUND - 4} T 410 ${GROUND - 6} L410 610 L-10 610 Z" fill="#6fc54c" stroke="${OUT}" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M-10 ${GROUND + 40} Q 150 ${GROUND + 18} 410 ${GROUND + 44} L410 610 L-10 610 Z" fill="#58ad3c"/>
+      <ellipse cx="300" cy="${GROUND + 38}" rx="46" ry="9" fill="#7fd6dc" stroke="${OUT}" stroke-width="4"/>`;
+  }
+
+  // Canopy of overlapping circles: outline pass, fill pass, then highlights — one merged blob
+  function blob(circles, fill, shade) {
+    const o = circles.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${OUT}" stroke="${OUT}" stroke-width="10"/>`).join('');
+    const f = circles.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}"/>`).join('');
+    const s = circles.map(([x, y, r]) => `<circle cx="${x + r * .18}" cy="${y + r * .22}" r="${r * .62}" fill="${shade}" opacity=".45"/>`).join('');
+    const h = circles.map(([x, y, r]) => `<circle cx="${x - r * .38}" cy="${y - r * .38}" r="${r * .2}" fill="#fff" opacity=".35"/>`).join('');
+    return o + f + s + h;
+  }
+
+  function trunk(k, color, branches) {
+    const h = 210 * k, w = 36 * k, x = 200, y = GROUND;
+    let d = `M ${x - w / 2} ${y} C ${x - w / 2} ${y - h * .4}, ${x - w * .3} ${y - h * .7}, ${x - w * .28} ${y - h}
+             L ${x + w * .28} ${y - h} C ${x + w * .3} ${y - h * .7}, ${x + w / 2} ${y - h * .4}, ${x + w / 2} ${y} Z`;
+    let b = '';
+    if (branches) {
+      b = `<path d="M ${x - w * .2} ${y - h * .62} Q ${x - 50 * k} ${y - h * .78} ${x - 70 * k} ${y - h * .86}" stroke="${OUT}" stroke-width="${16 * k}" fill="none" stroke-linecap="round"/>
+           <path d="M ${x - w * .2} ${y - h * .62} Q ${x - 50 * k} ${y - h * .78} ${x - 70 * k} ${y - h * .86}" stroke="${color}" stroke-width="${8 * k}" fill="none" stroke-linecap="round"/>
+           <path d="M ${x + w * .2} ${y - h * .55} Q ${x + 50 * k} ${y - h * .7} ${x + 74 * k} ${y - h * .8}" stroke="${OUT}" stroke-width="${16 * k}" fill="none" stroke-linecap="round"/>
+           <path d="M ${x + w * .2} ${y - h * .55} Q ${x + 50 * k} ${y - h * .7} ${x + 74 * k} ${y - h * .8}" stroke="${color}" stroke-width="${8 * k}" fill="none" stroke-linecap="round"/>`;
+    }
+    return `${b}<path d="${d}" fill="${color}" stroke="${OUT}" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M ${x + w * .12} ${y - 6} C ${x + w * .14} ${y - h * .4}, ${x + w * .05} ${y - h * .7}, ${x + w * .06} ${y - h * .9}" stroke="#000" stroke-opacity=".15" stroke-width="${Math.max(2, 5 * k)}" fill="none" stroke-linecap="round"/>`;
+  }
+
+  function sprout(t) {
+    const x = 200, y = GROUND;
+    return `<path d="M ${x} ${y} Q ${x - 4} ${y - 30} ${x} ${y - 52}" stroke="${OUT}" stroke-width="11" fill="none" stroke-linecap="round"/>
+      <path d="M ${x} ${y} Q ${x - 4} ${y - 30} ${x} ${y - 52}" stroke="${t.leaf}" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M ${x} ${y - 46} C ${x - 10} ${y - 72}, ${x - 46} ${y - 70}, ${x - 44} ${y - 54} C ${x - 40} ${y - 42}, ${x - 14} ${y - 40}, ${x} ${y - 46} Z" fill="${t.leaf}" stroke="${OUT}" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M ${x} ${y - 50} C ${x + 10} ${y - 78}, ${x + 48} ${y - 76}, ${x + 46} ${y - 60} C ${x + 42} ${y - 46}, ${x + 14} ${y - 44}, ${x} ${y - 50} Z" fill="${t.leaf}" stroke="${OUT}" stroke-width="5" stroke-linejoin="round"/>
+      <ellipse cx="${x}" cy="${y + 2}" rx="26" ry="6" fill="#7a4a2c" stroke="${OUT}" stroke-width="4"/>`;
+  }
+
+  const OAK = [[0, -30, 66], [-62, 0, 50], [62, 0, 50], [-38, -78, 50], [42, -74, 54], [0, -116, 44], [-92, 34, 36], [92, 34, 36]];
+  const COUNTS = [0, 3, 5, 7, 8];
+
+  function broadleaf(stage, t, kind) {
+    const k = [0, .45, .66, .86, 1][stage];
+    const topY = GROUND - 210 * k;
+    const circles = OAK.slice(0, COUNTS[stage]).map(([x, y, r]) => [200 + x * k, topY + y * k, r * k]);
+    let extra = '';
+    if (kind === 'cherry' && stage >= 2) {
+      seed = 99;
+      extra += circles.flatMap(([x, y, r]) => Array.from({ length: 4 }, () => {
+        const a = rnd() * 6.28, d = rnd() * r * .7;
+        return `<circle cx="${x + Math.cos(a) * d}" cy="${y + Math.sin(a) * d}" r="${3 + rnd() * 3}" fill="${rnd() > .5 ? '#fff' : '#e8578c'}" stroke="${OUT}" stroke-width="1.5"/>`;
+      })).join('');
+    }
+    if (kind === 'oak' && stage === 4) {
+      seed = 42;
+      extra += [[-50, 4], [40, -40], [70, 30], [-20, -90], [10, 10], [-80, 50]].map(([dx, dy]) =>
+        `<circle cx="${200 + dx}" cy="${topY + dy}" r="9" fill="#ef4a3c" stroke="${OUT}" stroke-width="3.5"/><circle cx="${197 + dx}" cy="${topY + dy - 3}" r="2.5" fill="#fff" opacity=".7"/>`).join('');
+    }
+    return `<g class="sway">${trunk(k, t.trunk, stage >= 3)}${blob(circles, t.leaf, t.shade)}${extra}</g>`;
+  }
+
+  function pine(stage, t) {
+    const k = [0, .45, .66, .86, 1][stage];
+    const tiers = [0, 2, 3, 4, 5][stage];
+    const baseY = GROUND - 44 * k;
+    let tiersSvg = '';
+    for (let i = 0; i < tiers; i++) {
+      const w = 190 * k * (1 - i * .16), y = baseY - i * 62 * k, h = 96 * k;
+      const d = `M ${200 - w / 2} ${y} Q 200 ${y + 14 * k} ${200 + w / 2} ${y} L 200 ${y - h} Z`;
+      tiersSvg += `<path d="${d}" fill="${t.leaf}" stroke="${OUT}" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M 200 ${y - h + 10} L ${200 + w * .3} ${y - 6}" stroke="${t.shade}" stroke-width="${8 * k}" stroke-linecap="round" opacity=".7"/>`;
+    }
+    const cones = stage === 4 ? [[-50, -30], [46, -90], [-30, -150], [60, -20]].map(([dx, dy]) =>
+      `<ellipse cx="${200 + dx}" cy="${baseY + dy}" rx="6" ry="10" fill="#9a5b2e" stroke="${OUT}" stroke-width="3"/>`).join('') : '';
+    const star = stage === 4 ? `<path d="M200 ${baseY - 4 * 62 - 96 - 22} l6 13 14 1 -11 9 4 14 -13 -8 -13 8 4 -14 -11 -9 14 -1z" fill="#ffd34d" stroke="${OUT}" stroke-width="3.5" stroke-linejoin="round"/>` : '';
+    const tr = `<rect x="${200 - 14 * k}" y="${GROUND - 50 * k}" width="${28 * k}" height="${50 * k}" rx="4" fill="${t.trunk}" stroke="${OUT}" stroke-width="5"/>`;
+    return `<g class="sway">${tr}${tiersSvg}${cones}${star}</g>`;
+  }
+
+  function rain() {
+    seed = 3;
+    let s = '<g stroke="#ffffff" stroke-opacity=".75" stroke-width="2.5" stroke-linecap="round">';
+    for (let i = 0; i < 70; i++) {
+      const x = rnd() * 470, y = rnd() * 520, dur = .7 + rnd() * .5, del = -rnd() * 2;
+      s += `<line class="drop" x1="${x}" y1="${y - 520}" x2="${x - 5}" y2="${y - 502}" style="animation-duration:${dur}s;animation-delay:${del}s"/>`;
+    }
+    s += '</g><g fill="none" stroke="#ffffff" stroke-opacity=".8" stroke-width="2">';
+    for (let i = 0; i < 9; i++) {
+      const x = 20 + rnd() * 360, y = GROUND + 8 + rnd() * 50;
+      s += `<ellipse class="splash" cx="${x}" cy="${y}" rx="9" ry="3" style="animation-delay:${-rnd()}s"/>`;
+    }
+    return s + '</g>';
+  }
+
+  function petals() {
+    seed = 11;
+    let s = '';
+    for (let i = 0; i < 10; i++) {
+      const x = 130 + rnd() * 170, y = 230 + rnd() * 80;
+      s += `<ellipse class="petal" cx="${x}" cy="${y}" rx="5" ry="3" fill="#ffc6da" stroke="${OUT}" stroke-width="1.5" style="animation-duration:${4 + rnd() * 3}s;animation-delay:${-rnd() * 6}s"/>`;
+    }
+    return s;
+  }
+
+  function render() {
+    const n = Number(document.getElementById('sessions').value);
+    const stage = stageFor(n);
+    const t = TREES[tree];
+    const body = stage === 0 ? sprout(t) : tree === 'pine' ? pine(stage, t) : broadleaf(stage, t, tree);
+    document.getElementById('scene').innerHTML =
+      sky() + cloud(40, 70, 1) + cloud(250, 110, .8) + ground() + body +
+      (tree === 'cherry' && stage === 4 ? petals() : '') + rain();
+    document.getElementById('count').textContent = n;
+    document.getElementById('stage').textContent = `${STAGES[stage].name}`;
+    const nxt = STAGES[stage + 1];
+    document.getElementById('next').textContent = nxt
+      ? `${nxt.at - n} more session${nxt.at - n === 1 ? '' : 's'} to grow into a ${nxt.name.toLowerCase()}.`
+      : 'Fully grown. Keep showing up — it stays this way as long as you do.';
+  }
+
+  document.querySelectorAll('[data-tree]').forEach((b) => b.addEventListener('click', () => {
+    tree = b.dataset.tree;
+    document.querySelectorAll('[data-tree]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    render();
+  }));
+  document.getElementById('sessions').addEventListener('input', render);
+  render();
+})();
+</script>
+</body>
+</html>
