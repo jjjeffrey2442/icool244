@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Branch of Life</title>
+<style>
+  :root { --bg: #0f0e0c; --text: #f2ede4; --muted: #a69d8f; --accent: #e0a84a; --line: #342f27; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.45 system-ui, -apple-system, sans-serif; }
+  main { max-width: 460px; margin: 0 auto; padding: 16px; }
+  h1 { margin: 4px 0 2px; font-size: 26px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+  .sub { color: var(--muted); margin: 0 0 14px; }
+  .frame { border-radius: 28px; overflow: hidden; border: 4px solid #2b2238; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+  svg { display: block; width: 100%; height: auto; }
+  .drop { animation: fall linear infinite; }
+  @keyframes fall { from { transform: translate(0, -60px); } to { transform: translate(-50px, 470px); } }
+  .splash { transform-box: fill-box; transform-origin: center; animation: splash 1s ease-out infinite; }
+  @keyframes splash { 0% { transform: scale(.2); opacity: .9; } 100% { transform: scale(1.4); opacity: 0; } }
+  .sway { transform-box: view-box; transform-origin: 200px 400px; animation: sway 6s ease-in-out infinite; }
+  @keyframes sway { 0%,100% { transform: rotate(-.8deg); } 50% { transform: rotate(.8deg); } }
+  .pulse { animation: pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: var(--glow); } 50% { opacity: calc(var(--glow) * .55); } }
+  .controls { display: grid; gap: 12px; margin-top: 16px; }
+  .ctl label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .ctl label b { color: var(--text); letter-spacing: 0; font-size: 14px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .key { list-style: none; padding: 0; margin: 18px 0 0; border-top: 1px solid var(--line); }
+  .key li { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .key li span:first-child { min-width: 92px; font-weight: 800; color: var(--accent); }
+  @media (prefers-reduced-motion: reduce) { .drop, .splash, .sway, .pulse { animation: none; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Branch of Life</h1>
+  <p class="sub">As vast below as above. The roots hold the beauty up.</p>
+  <div class="frame"><svg id="scene" viewBox="0 0 400 720" role="img" aria-label="A twin-trunked tree with roots as vast as its branches"></svg></div>
+
+  <div class="controls">
+    <div class="ctl"><label for="legs">Legs · calves · feet <b id="legs-v"></b></label><input id="legs" type="range" min="0" max="60" value="30"></div>
+    <div class="ctl"><label for="core">Core <b id="core-v"></b></label><input id="core" type="range" min="0" max="60" value="36"></div>
+    <div class="ctl"><label for="arms">Arms <b id="arms-v"></b></label><input id="arms" type="range" min="0" max="60" value="30"></div>
+    <div class="ctl"><label for="vest">Vest weight <b id="vest-v"></b></label><input id="vest" type="range" min="0" max="200" step="5" value="75"></div>
+  </div>
+
+  <ul class="key">
+    <li><span>Roots</span><span>Legs, calves, feet. They bear the weight when you're tired.</span></li>
+    <li><span>Twin trunk</span><span>Core. Two bases woven into one. The vest hardens it.</span></li>
+    <li><span>Gold rings</span><span>Every 25 lb on the vest. 25, 50, 75: each one earned.</span></li>
+    <li><span>Heart</span><span>Glows brighter the more you show up.</span></li>
+    <li><span>Branches</span><span>Arms. They reach out and interweave.</span></li>
+    <li><span>Crown</span><span>Mind. Every session adds leaves.</span></li>
+  </ul>
+</main>
+<script>
+(() => {
+  const OUT = '#2b2238';
+  const WOOD = '#a8673a', ROOT = '#8a5232', LEAF = '#4fc457', LEAF2 = '#7fe07a';
+  const GROUND = 400;
+  const $ = (id) => document.getElementById(id);
+
+  // Stable hash-based randomness: each branch keeps its shape as the tree grows
+  const h = (s) => { let x = 2166136261; for (let i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = Math.imul(x, 16777619); } return ((x >>> 0) % 100000) / 100000; };
+  const f1 = (n) => n.toFixed(1);
+
+  function grow(x, y, ang, len, w, depth, id, out, spread) {
+    const x2 = x + Math.cos(ang) * len, y2 = y + Math.sin(ang) * len;
+    const bend = (h(id + 'b') - .5) * .9;
+    const cx = (x + x2) / 2 + Math.cos(ang + Math.PI / 2) * len * bend * .5;
+    const cy = (y + y2) / 2 + Math.sin(ang + Math.PI / 2) * len * bend * .5;
+    out.segs.push({ d: `M${f1(x)} ${f1(y)}Q${f1(cx)} ${f1(cy)} ${f1(x2)} ${f1(y2)}`, w });
+    if (depth <= 1) { out.tips.push({ x: x2, y: y2, id }); return; }
+    const n = h(id + 'n') > .72 ? 3 : 2;
+    for (let i = 0; i < n; i++) {
+      const s = spread * (.75 + .5 * h(id + 's' + i));
+      const a = ang + (i - (n - 1) / 2) * s + (h(id + 'j' + i) - .5) * .25;
+      grow(x2, y2, a, len * (.72 + .12 * h(id + 'l' + i)), Math.max(1.6, w * .66), depth - 1, id + i, out, spread);
+    }
+  }
+
+  function strokes(segs, color, extra) {
+    const o = segs.map((s) => `<path d="${s.d}" stroke="${OUT}" stroke-width="${f1(s.w + 6)}"/>`).join('');
+    const f = segs.map((s) => `<path d="${s.d}" stroke="${color}" stroke-width="${f1(s.w)}"/>`).join('');
+    return `<g fill="none" stroke-linecap="round" stroke-linejoin="round" ${extra || ''}>${o}${f}</g>`;
+  }
+
+  function render() {
+    const L = +$('legs').value, C = +$('core').value, A = +$('arms').value, V = +$('vest').value;
+    const M = L + C + A;
+    $('legs-v').textContent = `${L} sessions`; $('core-v').textContent = `${C} sessions`;
+    $('arms-v').textContent = `${A} sessions`; $('vest-v').textContent = `${V} lb`;
+
+    // ---- core: two trunks braided together
+    const H = 70 + 160 * (C / 60);
+    const twists = 1 + C / 24;
+    const amp = 13 + 7 * (C / 60);
+    const w0 = 13 + 9 * (C / 60), w1 = 7 + 4 * (C / 60);
+    const N = 80;
+    const trunkPts = [[], []];
+    for (let k = 0; k <= N; k++) {
+      const t = k / N, y = GROUND - t * H;
+      const s = Math.sin(Math.PI * twists * t + Math.PI / 2);
+      trunkPts[0].push([200 - amp * s, y, w0 + (w1 - w0) * t]);
+      trunkPts[1].push([200 + amp * s, y, w0 + (w1 - w0) * t]);
+    }
+    const crossK = [];
+    for (let c = 0; ; c++) { const t = (c + .5) / twists; if (t >= 1) break; crossK.push(Math.round(t * N)); }
+    const bounds = [0, ...crossK, N];
+    const piece = (tr, a, b) => {
+      const pts = trunkPts[tr].slice(a, b + 1);
+      const segs = [];
+      for (let i = 1; i < pts.length; i++) segs.push({ d: `M${f1(pts[i - 1][0])} ${f1(pts[i - 1][1])}L${f1(pts[i][0])} ${f1(pts[i][1])}`, w: pts[i][2] });
+      return segs;
+    };
+    let braid = strokes(piece(0, 0, N), WOOD) + strokes(piece(1, 0, N), WOOD);
+    for (let c = 0; c < bounds.length - 1; c += 2) braid += strokes(piece(0, bounds[c], bounds[c + 1]), WOOD);
+
+    // ---- arms: interwoven branches from both crowns
+    const armDepth = 1 + Math.min(5, Math.floor(A / 12));
+    const armLen = 34 + 34 * (A / 60);
+    const branches = { segs: [], tips: [] };
+    const topY = GROUND - H;
+    const tops = [trunkPts[0][N], trunkPts[1][N]];
+    tops.forEach(([x, y, w], i) => {
+      const lean = i === 0 ? .42 : -.42; // left trunk reaches right, right reaches left: they cross
+      grow(x, y, -Math.PI / 2 + lean, armLen, w * .85, armDepth, 'a' + i, branches, .62);
+      if (A >= 20) grow(x, y, -Math.PI / 2 - lean * 1.9, armLen * .8, w * .6, armDepth - 1, 'c' + i, branches, .55);
+    });
+    if (A >= 35 && C >= 12) {
+      [[0, .55], [1, .55]].forEach(([tr, tt]) => {
+        const p = trunkPts[tr][Math.round(tt * N)];
+        const dir = p[0] < 200 ? -1 : 1;
+        grow(p[0], p[1], -Math.PI / 2 + dir * 1.05, armLen * .7, p[2] * .5, armDepth - 2, 'm' + tr, branches, .55);
+      });
+    }
+
+    // ---- legs: roots as vast below as the branches above
+    const rootDepth = 1 + Math.min(5, Math.floor(L / 12));
+    const rootLen = 30 + 40 * (L / 60);
+    const roots = { segs: [], tips: [] };
+    const bases = [trunkPts[0][0], trunkPts[1][0]];
+    bases.forEach(([x, y, w], i) => {
+      const lean = i === 0 ? -.5 : .5; // low, wide stance
+      grow(x, y, Math.PI / 2 + lean, rootLen, w * .9, rootDepth, 'r' + i, roots, .78);
+      grow(x, y, Math.PI / 2 - lean * .6, rootLen * .9, w * .7, rootDepth, 's' + i, roots, .7);
+      if (L >= 24) grow(x, y + 4, i === 0 ? Math.PI * .92 : Math.PI * .08, rootLen * .85, w * .55, rootDepth - 1, 'w' + i, roots, .6);
+    });
+
+    // ---- mind: crown of leaves, heart glow
+    const leafShare = Math.min(1, M / 90);
+    const leafR = 7 + 9 * Math.min(1, M / 150);
+    const leafTips = branches.tips.filter((t) => h(t.id + 'leaf') < leafShare);
+    const cl = [];
+    leafTips.forEach((t) => {
+      cl.push([t.x, t.y, leafR]);
+      cl.push([t.x + (h(t.id + 'x') - .5) * leafR * 1.6, t.y + (h(t.id + 'y') - .6) * leafR * 1.4, leafR * .75]);
+    });
+    const leaves = cl.map(([x, y, r]) => `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(r)}" fill="${OUT}" stroke="${OUT}" stroke-width="8"/>`).join('') +
+      cl.map(([x, y, r]) => `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(r)}" fill="${LEAF}"/>`).join('') +
+      cl.map(([x, y, r]) => `<circle cx="${f1(x - r * .35)}" cy="${f1(y - r * .35)}" r="${f1(r * .32)}" fill="${LEAF2}" opacity=".8"/>`).join('');
+
+    const glow = Math.min(1, .25 + M / 120);
+    const hk = crossK.length ? crossK[crossK.length - 1] : Math.round(N * .6);
+    const hy = trunkPts[0][hk][1];
+    const heart = `<g class="pulse" style="--glow:${glow.toFixed(2)}"><circle cx="200" cy="${f1(hy)}" r="26" fill="#ff6b7d" opacity=".55" filter="url(#blur)"/></g>
+      <path d="M200 ${f1(hy + 9)} C 186 ${f1(hy)}, 186 ${f1(hy - 11)}, 194 ${f1(hy - 11)} C 198 ${f1(hy - 11)}, 200 ${f1(hy - 7)}, 200 ${f1(hy - 5)} C 200 ${f1(hy - 7)}, 202 ${f1(hy - 11)}, 206 ${f1(hy - 11)} C 214 ${f1(hy - 11)}, 214 ${f1(hy)}, 200 ${f1(hy + 9)} Z"
+        fill="#ff5a6e" stroke="${OUT}" stroke-width="3.5" stroke-linejoin="round" opacity="${(.5 + glow / 2).toFixed(2)}"/>`;
+
+    // ---- vest: a gold ring for every 25 lb
+    const rings = Math.floor(V / 25);
+    let ringSvg = '';
+    for (let r = 0; r < rings; r++) {
+      const top = hk / N - .07;
+      const t = .07 + (top - .07) * ((r + .5) / rings);
+      const k = Math.round(t * N);
+      const y = trunkPts[0][k][1];
+      const half = Math.abs(trunkPts[0][k][0] - 200) + trunkPts[0][k][2] / 2 + 3;
+      const arc = `M${f1(198 - half)} ${f1(y)}A${f1(half + 2)} 6 0 0 0 ${f1(202 + half)} ${f1(y)}`;
+      ringSvg += `<path d="${arc}" fill="none" stroke="${OUT}" stroke-width="10" stroke-linecap="round"/>
+        <path d="${arc}" fill="none" stroke="#ffcf4d" stroke-width="5" stroke-linecap="round"/>
+        <text x="${f1(200 + half + 12)}" y="${f1(y + 4)}" font-size="11" font-weight="900" fill="${OUT}" font-family="system-ui,sans-serif">${(r + 1) * 25}</text>`;
+    }
+
+    // ---- root tips: in tune with the earth
+    const rootGlow = roots.tips.map((t) => `<circle cx="${f1(t.x)}" cy="${f1(t.y)}" r="${f1(3 + 2 * h(t.id))}" fill="#7ff0d8" opacity="${(.35 + .6 * (L / 60)).toFixed(2)}"/>`).join('');
+
+    // ---- earth and sky
+    const stones = [[60, 470, 16], [330, 520, 20], [110, 640, 14], [290, 660, 18], [40, 580, 11], [365, 440, 10]]
+      .map(([x, y, r]) => `<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r * .7}" fill="#8f8a83" stroke="${OUT}" stroke-width="3.5"/><ellipse cx="${x - r * .3}" cy="${y - r * .25}" rx="${r * .3}" ry="${r * .18}" fill="#fff" opacity=".35"/>`).join('');
+    let rain = '<g clip-path="url(#above)" stroke="#fff" stroke-opacity=".75" stroke-width="2.5" stroke-linecap="round">';
+    for (let i = 0; i < 60; i++) {
+      const x = h('rx' + i) * 460, y = h('ry' + i) * 400, d = .7 + h('rd' + i) * .5;
+      rain += `<line class="drop" x1="${f1(x)}" y1="${f1(y - 400)}" x2="${f1(x - 4)}" y2="${f1(y - 384)}" style="animation-duration:${d.toFixed(2)}s;animation-delay:${(-h('rl' + i) * 2).toFixed(2)}s"/>`;
+    }
+    rain += '</g><g fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="2">';
+    for (let i = 0; i < 8; i++) rain += `<ellipse class="splash" cx="${f1(20 + h('sx' + i) * 360)}" cy="${GROUND - 2}" rx="9" ry="3" style="animation-delay:${(-h('sd' + i)).toFixed(2)}s"/>`;
+    rain += '</g>';
+
+    $('scene').innerHTML = `
+      <defs>
+        <linearGradient id="sky" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0" stop-color="#cdeac0"/><stop offset=".35" stop-color="#9fe0c4"/>
+          <stop offset=".7" stop-color="#4fd0cf"/><stop offset="1" stop-color="#1fb3d1"/>
+        </linearGradient>
+        <linearGradient id="soil" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#6b4a32"/><stop offset="1" stop-color="#3a2618"/>
+        </linearGradient>
+        <filter id="blur" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="8"/></filter>
+        <clipPath id="above"><rect width="400" height="${GROUND}"/></clipPath>
+        <clipPath id="below"><rect y="${GROUND + 2}" width="400" height="${720 - GROUND}"/></clipPath>
+      </defs>
+      <rect width="400" height="${GROUND}" fill="url(#sky)"/>
+      <rect y="${GROUND}" width="400" height="${720 - GROUND}" fill="url(#soil)"/>
+      <path d="M0 ${GROUND + 70} Q 120 ${GROUND + 58} 220 ${GROUND + 74} T 400 ${GROUND + 66}" stroke="#000" stroke-opacity=".18" stroke-width="3" fill="none"/>
+      <path d="M0 ${GROUND + 170} Q 140 ${GROUND + 184} 260 ${GROUND + 166} T 400 ${GROUND + 176}" stroke="#000" stroke-opacity=".18" stroke-width="3" fill="none"/>
+      ${stones}
+      <g clip-path="url(#below)"><g id="below-g">${strokes(roots.segs, ROOT)}${rootGlow}</g></g>
+      <path d="M-10 ${GROUND + 6} Q 100 ${GROUND - 10} 200 ${GROUND} T 410 ${GROUND - 2} L410 ${GROUND + 16} L-10 ${GROUND + 16} Z" fill="#6fc54c" stroke="${OUT}" stroke-width="5" stroke-linejoin="round"/>
+      <g id="above-g"><g class="sway">${strokes(branches.segs, WOOD)}${leaves}</g>
+      ${braid}
+      ${ringSvg}
+      ${heart}</g>
+      ${rain}`;
+    fit('above-g', (b) => Math.min((GROUND - 14) / (GROUND - b.y), 186 / Math.max(200 - b.x, b.x + b.width - 200)));
+    fit('below-g', (b) => Math.min((720 - GROUND - 14) / (b.y + b.height - GROUND), 190 / Math.max(200 - b.x, b.x + b.width - 200)));
+  }
+
+  function fit(id, scaleFor) {
+    const g = document.getElementById(id);
+    const b = g.getBBox();
+    if (!b.width) return;
+    const k = Math.min(1, scaleFor(b));
+    if (k < 1) g.setAttribute('transform', `translate(200 ${GROUND}) scale(${k.toFixed(3)}) translate(-200 -${GROUND})`);
+  }
+
+  ['legs', 'core', 'arms', 'vest'].forEach((id) => $(id).addEventListener('input', render));
+  render();
+})();
+</script>
+</body>
+</html>
